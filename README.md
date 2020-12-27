@@ -15,4 +15,4 @@ The entrypoint of the library is call `MutationOf<MyType>()` to create an instan
 You can then write code to reference these types in the same way you would in any other circumstance,
 except that you must call `set(to: )` instead of using the normal `=` operator.
 
-The library is documented in its source files. 
+There's more detailed documentation in the source files. 
