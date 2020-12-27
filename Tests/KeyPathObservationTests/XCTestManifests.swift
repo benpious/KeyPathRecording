@@ -16,8 +16,10 @@
 
 import XCTest
 
-import PathKeyTests
-
-var tests = [XCTestCaseEntry]()
-tests += PathKeyTests.allTests()
-XCTMain(tests)
+#if !canImport(ObjectiveC)
+public func allTests() -> [XCTestCaseEntry] {
+    return [
+        testCase(PathKeyTests.allTests),
+    ]
+}
+#endif
