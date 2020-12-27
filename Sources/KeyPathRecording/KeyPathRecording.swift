@@ -15,10 +15,22 @@
 //
 
 /**
+ See the documentation of `RecordingOf` for details about this type.
+ */
+public typealias Predicate<Root> = RecordingOf<Root, PropertyPredicate<Root>>
+
+/**
+ See the documentation of `RecordingOf` for details about this type.
+ */
+public typealias MutationOf<Root> = RecordingOf<Root, Mutation<Root>>
+
+/**
  A Recording of changes to `Root`.
  
- You initialize an instance of this class by calling `MutationOf<MyType>()`.
- 
+ It's best to use the typealiases `Predicate<Root>` and `MutationOf<Root>` to interact with this
+ type. You initialize them with `Predicate<Root>()` and `MutationOf<Root>` respectively. There are also versions
+ which take closures letting you perform the muations inline.
+  
  You can then write code to reference these types in the same way you would in any other circumstance,
  except that you must call `set(to: )` instead of using the normal `=` operator.
  
@@ -33,8 +45,9 @@
  ```
  You can write:
  ```
- let recorder = MutationOf<MyType>()
- recorder.v.a.set(to: 10)
+ let recorder = MutationOf<MyType> { recording in
+    recording.v.a.set(to: 10)
+ }
  ```
  
 You could use this recorder to apply the changes to a real instance of `MyChild`:
@@ -42,20 +55,19 @@ You could use this recorder to apply the changes to a real instance of `MyChild`
  recorder.apply(to: realInstance)
  ```
  
- Or treat it as a predicate, and see if an existing instance matches:
- ```
- recorder.matches(target: realInstance)
- ```
- 
  You can also access the individual recorded mutations through the `changes` property, and can introspect them using
  `has(prefix:)`, `has(suffix: andValue: )`, or use `==` to compare directly to a `PartialKeyPath`.
  
- As the goal of this class is to produce recordings that you can store and introspect, any recording value is
- required to conform to `Hashable`. This isn't an inherent limitation of this technique; but it makes it more
- useful for the typical purpose of storing the changes.
+ Meanwhile, the `Predicate` version lets you test if the recording matches a target:
+ ```
+ recorder.matches(target: realInstance)
+ ```
+  
+ As the goal of this library is to produce recordings that you can store and introspect, any recording value is
+ required to conform to `Hashable`. But this isn't an inherent limitation of this technique; you can make your own `Record` type and appropriate extensions which do not have this limitation.
  */
 @dynamicMemberLookup
-public struct MutationOf<Root> {
+public struct RecordingOf<Root, Record> {
     
     /**
      Initializer.
@@ -67,39 +79,21 @@ public struct MutationOf<Root> {
     /**
      Initializer.
      */
-    public init(changes: (inout MutationOf<Root>) -> ()) {
+    public init(changes: (inout RecordingOf<Root, Record>) -> ()) {
         changes(&self)
     }
     
     /**
      The list of changes currently made.
      */
-    public var changes: [Mutation<Root>] {
+    public var changes: [Record] {
         built.wrapped
     }
-    
-    /**
-     Applies all the mutations to `target`.
-     */
-    public func apply(to target: inout Root) {
-        for change in changes {
-            change.setter(&target)
-        }
-    }
-    
-    /**
-     Indicate if `target` has identical values for all the mutations in the callee.
-     */
-    public func matches(target: Root) -> Bool {
-        changes.allSatisfy { (change) -> Bool in
-            change.matches(target: target)
-        }
-    }
-    
+        
     public subscript<NextChild>(
         dynamicMember member: WritableKeyPath<Root, NextChild>
-    ) -> Recorder<Root, Root, NextChild> {
-        Recorder<Root, Root, NextChild>(
+    ) -> Recorder<Root, Root, NextChild, Record> {
+        Recorder<Root, Root, NextChild, Record>(
             built: built,
             path: Path<Root, NextChild>(
                 fromRoot: member,
@@ -108,47 +102,16 @@ public struct MutationOf<Root> {
         )
     }
     
-    private let built: ReferenceTo<[Mutation<Root>]> = ReferenceTo([])
+    private let built: ReferenceTo<[Record]> = ReferenceTo([])
     
 }
 
-/**
- Intermediate node in a recorded call.
- 
- You use dynamic member lookup to interact with the recording. When you're ready to set a value, you use
- `set(to: )`.
- */
-@dynamicMemberLookup
-public struct Recorder<Root, Parent, Child> {
-    
-    public subscript<NextChild>(
-        dynamicMember member: WritableKeyPath<Child, NextChild>
-    ) -> Recorder<Root, Child, NextChild> {
-        Recorder<Root, Child, NextChild>(
-            built: built,
-            path: Path<Root, NextChild>(
-                fromRoot: path.fromRoot.appending(path: member),
-                untypedPath: path.untypedPath + [member]
-            )
-        )
-    }
-    
-    fileprivate init(built: ReferenceTo<[Mutation<Root>]>, path: Path<Root, Child>) {
-        self.built = built
-        self.path = path
-    }
-    
-    fileprivate let built: ReferenceTo<[Mutation<Root>]>
-    fileprivate var path: Path<Root, Child>
-    
-}
-
-extension Recorder where Child: Hashable {
+public extension Recorder where Child: Hashable, Record == Mutation<Root> {
     
     /**
      Sets a node to the provided value.
      */
-    public func set(to value: Child) {
+    func set(to value: Child) {
         built.wrapped.append(
             Mutation(
                 value: value,
@@ -161,6 +124,160 @@ extension Recorder where Child: Hashable {
                 }
             )
         )
+    }
+    
+}
+
+public extension RecordingOf where Record == Mutation<Root> {
+    
+    /**
+     Applies all the mutations to `target`.
+     */
+    func apply(to target: inout Root) {
+        for change in changes {
+            change.setter(&target)
+        }
+    }
+
+}
+
+public extension RecordingOf where Record == PropertyPredicate<Root> {
+    
+    func matches(target: Root) -> Bool {
+        changes.allSatisfy { (predicate) -> Bool in
+            predicate.test(target)
+        }
+    }
+    
+}
+
+public extension Recorder where Record == PropertyPredicate<Root>, Child: Hashable {
+    
+    func isEqual(to value: Child) {
+        let predicate = PropertyPredicate<Root>(
+            value: value,
+            path: path.fromRoot,
+            technique: .equality,
+            test: { (root: Root) -> Bool in
+                root[keyPath: path.fromRoot] == value
+            }
+        )
+        built.wrapped.append(
+            predicate
+        )
+    }
+        
+}
+
+public extension Recorder where Record == PropertyPredicate<Root>, Child: Hashable, Child: Comparable {
+    
+    func isLess(than value: Child) {
+        let predicate = PropertyPredicate<Root>(
+            value: value,
+            path: path.fromRoot,
+            technique: .lessThanComparision,
+            test: { (root: Root) -> Bool in
+                root[keyPath: path.fromRoot] < value
+            }
+        )
+        built.wrapped.append(
+            predicate
+        )
+    }
+    
+    func isGreater(than value: Child) {
+        let predicate = PropertyPredicate<Root>(
+            value: value,
+            path: path.fromRoot,
+            technique: .greaterThanComparision,
+            test: { (root: Root) -> Bool in
+                root[keyPath: path.fromRoot] > value
+            }
+        )
+        built.wrapped.append(
+            predicate
+        )
+    }
+        
+}
+
+
+
+/**
+ Intermediate node in a recorded call.
+ 
+ You use dynamic member lookup to interact with the recording. When you're ready to set a value, you use
+ `set(to: )`.
+ */
+@dynamicMemberLookup
+public struct Recorder<Root, Parent, Child, Record> {
+    
+    public subscript<NextChild>(
+        dynamicMember member: WritableKeyPath<Child, NextChild>
+    ) -> Recorder<Root, Child, NextChild, Record> {
+        Recorder<Root, Child, NextChild, Record>(
+            built: built,
+            path: Path<Root, NextChild>(
+                fromRoot: path.fromRoot.appending(path: member),
+                untypedPath: path.untypedPath + [member]
+            )
+        )
+    }
+    
+    fileprivate init(built: ReferenceTo<[Record]>, path: Path<Root, Child>) {
+        self.built = built
+        self.path = path
+    }
+    
+    fileprivate let built: ReferenceTo<[Record]>
+    fileprivate var path: Path<Root, Child>
+    
+}
+
+public struct PropertyPredicate<Root>: Hashable {
+    
+    enum Comparision: Hashable {
+        
+        // TODO: turn this into something extensible for custom comparisons
+        // probably a bitmask
+        
+        case equality
+        case lessThanComparision
+        case greaterThanComparision
+        case notEqual
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(path)
+        hasher.combine(hashWitness())
+        hasher.combine(technique)
+    }
+    
+    public static func == (lhs: PropertyPredicate<Root>, rhs: PropertyPredicate<Root>) -> Bool {
+        lhs.isEqual(rhs)
+    }
+    
+    fileprivate let test: (Root) -> Bool
+    fileprivate let path: AnyKeyPath
+    fileprivate let value: Any
+    fileprivate let isEqual: (PropertyPredicate) -> (Bool)
+    fileprivate let hashWitness: () -> Int
+    fileprivate let technique: Comparision
+    
+    fileprivate init<T>(value: T,
+                        path: PartialKeyPath<Root>,
+                        technique: Comparision,
+                        test: @escaping (Root) -> Bool) where T: Hashable {
+        self.technique = technique
+        self.path = path
+        self.test = test
+        self.value = value
+        isEqual = { rhs in
+            path == rhs.path &&
+                technique == rhs.technique &&
+                value == (rhs.value as! T)
+        }
+        hashWitness = { value.hashValue }
     }
     
 }

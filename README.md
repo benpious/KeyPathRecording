@@ -10,7 +10,7 @@ This library lets you record and store mutations to a struct or object for later
 
 You install this library as a dependency using Swift Package Manager. 
 
-The entrypoint of the library is call `MutationOf<MyType>()` to create an instance of `MutationOf` that you can use. 
+The entrypoint of the library is call `RecordingOf<MyType>()` to create an instance of `RecordingOf` that you can use. 
 
 You can then write code to reference these types in the same way you would in any other circumstance,
 except that you must call `set(to: )` instead of using the normal `=` operator.

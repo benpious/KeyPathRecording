@@ -17,16 +17,9 @@
 import XCTest
 @testable import KeyPathRecording
 
-final class PathKeyTests: XCTestCase {
-    func test_various() {
-        struct S {
-            var v: V
-        }
-        struct V {
-            var a: Int = 8
-            var z: C = C()
-        }
-        let r = MutationOf<S>()
+final class KeyPathRecordingTests: XCTestCase {
+    func test_mutations() {
+        let r = RecordingOf<S, Mutation<S>>()
         r.v.a.set(to: 9)
         r.v.z.set(to: C())
         let apps = r.changes
@@ -40,6 +33,15 @@ final class PathKeyTests: XCTestCase {
             value == 9
         })
         XCTAssertTrue(app.has(prefix: \S.v))
+    }
+    
+    func test_predicates() {
+        let predicate = Predicate<S> { (predicate) in
+            predicate.v.a.isEqual(to: 8)
+            predicate.v.a.isGreater(than: 7)
+            predicate.v.a.isLess(than: 9)
+        }
+        XCTAssertTrue(predicate.matches(target: S(v: V())))
     }
 
 }
@@ -56,5 +58,16 @@ fileprivate class C: Hashable {
     
     
     var a = 7
+    
+}
+
+fileprivate struct S: Hashable {
+    var v: V
+}
+
+fileprivate struct V: Hashable {
+    
+    var a: Int = 8
+    fileprivate var z: C = C()
     
 }
