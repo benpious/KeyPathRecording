@@ -15,10 +15,10 @@
 //
 
 import XCTest
-@testable import KeyPathObservation
+@testable import KeyPathRecording
 
 final class PathKeyTests: XCTestCase {
-    func testExample() {
+    func test_various() {
         struct S {
             var v: V
         }
@@ -56,4 +56,5 @@ fileprivate class C: Hashable {
     
     
     var a = 7
+    
 }
