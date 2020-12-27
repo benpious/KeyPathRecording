@@ -58,6 +58,20 @@ You could use this recorder to apply the changes to a real instance of `MyChild`
 public struct MutationOf<Root> {
     
     /**
+     Initializer.
+     */
+    public init() {
+        
+    }
+    
+    /**
+     Initializer.
+     */
+    public init(changes: (inout MutationOf<Root>) -> ()) {
+        changes(&self)
+    }
+    
+    /**
      The list of changes currently made.
      */
     public var changes: [Mutation<Root>] {
