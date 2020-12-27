@@ -1,4 +1,4 @@
-# KeyPathObservation
+# KeyPathRecording
 
 ## Motivation
 
