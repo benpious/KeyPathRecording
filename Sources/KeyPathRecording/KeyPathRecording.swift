@@ -102,6 +102,18 @@ public struct RecordingOf<Root, Record> {
         )
     }
     
+    public subscript<NextChild>(
+        dynamicMember member: WritableKeyPath<Root, NextChild?>
+    ) -> Recorder<Root, Root, NextChild?, Record> {
+        Recorder<Root, Root, NextChild?, Record>(
+            built: built,
+            path: Path<Root, NextChild?>(
+                fromRoot: member,
+                untypedPath: [member]
+            )
+        )
+    }
+
     private let built: ReferenceTo<[Record]> = ReferenceTo([])
     
 }
@@ -201,8 +213,6 @@ public extension Recorder where Record == PropertyPredicate<Root>, Child: Hashab
         
 }
 
-
-
 /**
  Intermediate node in a recorded call.
  
@@ -218,6 +228,18 @@ public struct Recorder<Root, Parent, Child, Record> {
         Recorder<Root, Child, NextChild, Record>(
             built: built,
             path: Path<Root, NextChild>(
+                fromRoot: path.fromRoot.appending(path: member),
+                untypedPath: path.untypedPath + [member]
+            )
+        )
+    }
+    
+    public subscript<NextChild>(
+        dynamicMember member: WritableKeyPath<Child, NextChild?>
+    ) -> Recorder<Root, Child, NextChild?, Record> {
+        Recorder<Root, Child, NextChild?, Record>(
+            built: built,
+            path: Path<Root, NextChild?>(
                 fromRoot: path.fromRoot.appending(path: member),
                 untypedPath: path.untypedPath + [member]
             )
@@ -418,3 +440,83 @@ fileprivate class ReferenceTo<T> {
     var wrapped: T
     
 }
+
+/**
+ Do not conform to or interact with this protocol.
+ 
+ This protocol is an implementation detail.
+ 
+ Swift generics are not covariant, so `KeyPath<T?, U>` isn't the same
+ as `KeyPath<T, U>`, and thus `Recorder<T?>` doesn't have any of the dynamic lookup
+ features that `Recorder<T>` would have.
+ */
+public protocol KeyPathRecordingOptional {
+    
+    associatedtype Wrapped
+    
+    subscript<U>(__unwrap path: WritableKeyPath<Wrapped, U>) -> U? { get set }
+    
+    subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U>) -> U  { get set }
+    
+}
+
+extension Optional: KeyPathRecordingOptional {
+    
+    @available(swift, deprecated: 0.1, message: "An imp")
+    public subscript<U>(__unwrap path: WritableKeyPath<Wrapped, U>) -> U? {
+        get {
+            if let wrapped = self {
+                return wrapped[keyPath: path]
+            } else {
+                return nil
+            }
+        }
+        set {
+            if var wrapped = self,
+               let newValue = newValue {
+                wrapped[keyPath: path] = newValue
+                self = .some(wrapped)
+            }
+        }
+    }
+    
+    @available(swift, deprecated: 0.1)
+    public subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U>) -> U {
+        @available(*, unavailable)
+        get {
+            fatalError()
+        }
+        set {
+            if var wrapped = self {
+                wrapped[keyPath: path] = newValue
+                self = .some(wrapped)
+            }
+        }
+    }
+    
+}
+
+extension Recorder where Child: KeyPathRecordingOptional {
+    
+    subscript<Next>(dynamicMember member: WritableKeyPath<Child.Wrapped, Next>) -> Recorder<Root, Child, Next?, Record> {
+        Recorder<Root, Child, Next?, Record>(
+            built: built,
+            path: Path<Root, Next?>(
+                fromRoot: path.fromRoot.appending(path: \Child.[__unwrap: member]),
+                untypedPath: path.untypedPath + [member]
+            )
+        )
+    }
+    
+    subscript<Next>(dynamicMember member: WritableKeyPath<Child.Wrapped, Next?>) -> Recorder<Root, Child, Next?, Record> {
+        Recorder<Root, Child, Next?, Record>(
+            built: built,
+            path: Path<Root, Next?>(
+                fromRoot: path.fromRoot.appending(path: \Child.[__unsafe_unwrap: member]),
+                untypedPath: path.untypedPath + [member]
+            )
+        )
+    }
+    
+}
+

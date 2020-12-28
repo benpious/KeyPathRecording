@@ -17,12 +17,24 @@
 import XCTest
 @testable import KeyPathRecording
 
+let w: WritableKeyPath<[String: String], String?> = \.["test"]
+func f<T>(_: T) where T: Hashable {
+    var a = ["a": "b"]
+    a[keyPath: w] = "test"
+}
+
+func t() {
+    f(2 as Int?)
+}
+
 final class KeyPathRecordingTests: XCTestCase {
     func test_mutations() {
-        let r = RecordingOf<S, Mutation<S>>()
-        r.v.a.set(to: 9)
-        r.v.z.set(to: C())
-        let apps = r.changes
+        let rS = RecordingOf<S, Mutation<S>>()
+        rS.v.a.set(to: 9)
+        rS.v.z.set(to: C())
+        rS.b.a.set(to: Decorator())
+        rS.v.b["abc"].a.set(to: 9)
+        let apps = rS.changes
         var s = S(v: V())
         let app = apps[0]
         XCTAssertTrue(app == app)
@@ -34,7 +46,7 @@ final class KeyPathRecordingTests: XCTestCase {
         })
         XCTAssertTrue(app.has(prefix: \S.v))
     }
-    
+
     func test_predicates() {
         let predicate = Predicate<S> { (predicate) in
             predicate.v.a.isEqual(to: 8)
@@ -47,27 +59,79 @@ final class KeyPathRecordingTests: XCTestCase {
 }
 
 fileprivate class C: Hashable {
-    
+
     static func == (lhs: C, rhs: C) -> Bool {
         lhs.a == rhs.a
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(a)
     }
-    
-    
+
+
     var a = 7
-    
+
 }
 
 fileprivate struct S: Hashable {
     var v: V
+    var b: B<V> = .init()
 }
 
 fileprivate struct V: Hashable {
-    
+
     var a: Int = 8
+    var b = ["abc": C()]
     fileprivate var z: C = C()
+
+}
+
+@dynamicMemberLookup
+struct B<T>: Hashable {
+
+    typealias Original = T
+
+    subscript<U>(dynamicMember member: WritableKeyPath<T, U>) -> Decorator<U> {
+        get {
+            fatalError()
+        }
+        set {
+
+        }
+    }
+    
+    subscript<U>(dynamicMember member: WritableKeyPath<T, U?>) -> Decorator<U?> {
+        get {
+            fatalError()
+        }
+        set {
+
+        }
+    }
+
+
+}
+
+@dynamicMemberLookup
+struct Decorator<U>: Hashable {
+
+    subscript<V>(dynamicMember member: WritableKeyPath<U, V>) -> V? {
+        get {
+            fatalError()
+        }
+        set {
+
+        }
+    }
+    
+    subscript<V>(dynamicMember member: WritableKeyPath<U, V?>) -> V? {
+        get {
+            fatalError()
+        }
+        set {
+
+        }
+    }
+
     
 }
