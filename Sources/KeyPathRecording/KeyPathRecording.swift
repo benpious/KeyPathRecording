@@ -165,6 +165,20 @@ public extension RecordingOf where Record == PropertyPredicate<Root> {
 
 public extension Recorder where Record == PropertyPredicate<Root>, Child: Hashable {
     
+    func notEqual(to value: Child) {
+        let predicate = PropertyPredicate<Root>(
+            value: value,
+            path: path.fromRoot,
+            technique: .notEqual,
+            test: { (root: Root) -> Bool in
+                root[keyPath: path.fromRoot] != value
+            }
+        )
+        built.wrapped.append(
+            predicate
+        )
+    }
+    
     func isEqual(to value: Child) {
         let predicate = PropertyPredicate<Root>(
             value: value,
@@ -178,7 +192,7 @@ public extension Recorder where Record == PropertyPredicate<Root>, Child: Hashab
             predicate
         )
     }
-        
+    
 }
 
 public extension Recorder where Record == PropertyPredicate<Root>, Child: Hashable, Child: Comparable {
