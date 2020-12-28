@@ -462,7 +462,14 @@ public protocol KeyPathRecordingOptional {
 
 extension Optional: KeyPathRecordingOptional {
     
-    @available(swift, deprecated: 0.1, message: "An imp")
+    /**
+     Do not use.
+     */
+    @available(
+    swift,
+    deprecated: 0.1,
+    message: "An implementation detail of KeyPathRecording. Don't use this yourself."
+    )
     public subscript<U>(__unwrap path: WritableKeyPath<Wrapped, U>) -> U? {
         get {
             if let wrapped = self {
@@ -480,7 +487,14 @@ extension Optional: KeyPathRecordingOptional {
         }
     }
     
-    @available(swift, deprecated: 0.1)
+    /**
+     Do not use.
+     */
+    @available(
+    swift,
+    deprecated: 0.1,
+    message: "An implementation detail of KeyPathRecording. Don't use this yourself."
+    )
     public subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U>) -> U {
         @available(*, unavailable)
         get {
