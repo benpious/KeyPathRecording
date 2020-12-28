@@ -17,16 +17,6 @@
 import XCTest
 import KeyPathRecording
 
-let w: WritableKeyPath<[String: String], String?> = \.["test"]
-func f<T>(_: T) where T: Hashable {
-    var a = ["a": "b"]
-    a[keyPath: w] = "test"
-}
-
-func t() {
-    f(2 as Int?)
-}
-
 final class KeyPathRecordingTests: XCTestCase {
     func test_mutations() {
         let rS = RecordingOf<S, Mutation<S>>()
@@ -54,6 +44,34 @@ final class KeyPathRecordingTests: XCTestCase {
             predicate.v.a.isLess(than: 9)
         }
         XCTAssertTrue(predicate.matches(target: S(v: V())))
+    }
+    
+    func test_forwarding() {
+        @dynamicMemberLookup
+        struct ForwardingDecorator<U> {
+            subscript<Next>(dynamicMember member: WritableKeyPath<U, Next>) -> Next? {
+                get {
+                    fatalError()
+                }
+                set {
+                    
+                }
+            }
+            
+        }
+        class Base {
+            var subsequentDictionary = ["abc": ForwardingDecorator<Subsequent>()]
+            var subsequent: ForwardingDecorator<Subsequent> = ForwardingDecorator<Subsequent>()
+        }
+        struct Subsequent {
+            var last: Last = Last()
+        }
+        struct Last {
+            var value = 4
+        }
+        let recording = MutationOf<Base>()
+        recording.subsequent.last.value.set(to: 9)
+        recording.subsequentDictionary["abc"].last.value.set(to: 9)
     }
 
 }

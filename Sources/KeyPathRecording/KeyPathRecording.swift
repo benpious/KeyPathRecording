@@ -258,17 +258,10 @@ public struct Recorder<Root, Parent, Child, Record> {
 
 public struct PropertyPredicate<Root>: Hashable {
     
-    enum Comparision: Hashable {
-        
-        // TODO: turn this into something extensible for custom comparisons
-        // probably a bitmask
-        
-        case equality
-        case lessThanComparision
-        case greaterThanComparision
-        case notEqual
+    public func matches(target: Root) -> Bool {
+        test(target)
     }
-    
+        
     public func hash(into hasher: inout Hasher) {
         hasher.combine(path)
         hasher.combine(hashWitness())
@@ -278,7 +271,7 @@ public struct PropertyPredicate<Root>: Hashable {
     public static func == (lhs: PropertyPredicate<Root>, rhs: PropertyPredicate<Root>) -> Bool {
         lhs.isEqual(rhs)
     }
-    
+        
     fileprivate let test: (Root) -> Bool
     fileprivate let path: AnyKeyPath
     fileprivate let value: Any
@@ -301,6 +294,17 @@ public struct PropertyPredicate<Root>: Hashable {
         }
         hashWitness = { value.hashValue }
     }
+    
+    enum Comparision: Hashable {
+            
+            // TODO: turn this into something extensible for custom comparisons
+            // probably a bitmask
+            
+            case equality
+            case lessThanComparision
+            case greaterThanComparision
+            case notEqual
+        }
     
 }
 
