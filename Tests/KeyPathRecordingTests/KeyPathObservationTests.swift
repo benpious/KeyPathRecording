@@ -15,7 +15,7 @@
 //
 
 import XCTest
-@testable import KeyPathRecording
+import KeyPathRecording
 
 let w: WritableKeyPath<[String: String], String?> = \.["test"]
 func f<T>(_: T) where T: Hashable {

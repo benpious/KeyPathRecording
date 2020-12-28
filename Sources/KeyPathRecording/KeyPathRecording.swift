@@ -496,7 +496,7 @@ extension Optional: KeyPathRecordingOptional {
     
 }
 
-extension Recorder where Child: KeyPathRecordingOptional {
+public extension Recorder where Child: KeyPathRecordingOptional {
     
     subscript<Next>(dynamicMember member: WritableKeyPath<Child.Wrapped, Next>) -> Recorder<Root, Child, Next?, Record> {
         Recorder<Root, Child, Next?, Record>(
