@@ -474,11 +474,20 @@ public protocol KeyPathRecordingOptional {
     
     subscript<U>(__unwrap path: WritableKeyPath<Wrapped, U>) -> U? { get set }
     
-    subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U>) -> U  { get set }
+    subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U?>) -> U?  { get set }
     
 }
 
 extension Optional: KeyPathRecordingOptional {
+    
+    public var asOptional: Wrapped? {
+        get {
+            self
+        }
+        set {
+            self = newValue
+        }
+    }
     
     /**
      Do not use.
@@ -513,10 +522,13 @@ extension Optional: KeyPathRecordingOptional {
     deprecated: 0.1,
     message: "An implementation detail of KeyPathRecording. Don't use this yourself."
     )
-    public subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U>) -> U {
-        @available(*, unavailable)
+    public subscript<U>(__unsafe_unwrap path: WritableKeyPath<Wrapped, U?>) -> U? {
         get {
-            fatalError()
+            if let wrapped = self {
+                return wrapped[keyPath: path]
+            } else {
+                return nil
+            }
         }
         set {
             if var wrapped = self {
@@ -549,6 +561,7 @@ public extension Recorder where Child: KeyPathRecordingOptional {
             )
         )
     }
-    
+        
 }
+
 
